@@ -479,14 +479,82 @@ def handle_message(event: dict) -> None:
         log(f'  notion log thread fail: {e}')
 
 
+def handle_file_share(event: dict) -> None:
+    """슬랙 파일 공유 처리 — 다운로드 후 Claude에게 분석 요청."""
+    import urllib.request as _urlreq
+
+    channel = event.get('channel', '')
+    ts = event.get('ts', '')
+    user = event.get('user', '')
+    files = event.get('files', [])
+
+    if not files: return
+    if user != MIRI: return
+    if channel != CHANNEL: return
+
+    file_info = files[0]
+    file_name = file_info.get('name', 'file')
+    file_url = (file_info.get('url_private_download') or file_info.get('url_private', ''))
+    if not file_url:
+        return
+
+    log(f'file: {file_name}')
+    try:
+        web.reactions_add(channel=channel, timestamp=ts, name='hourglass_flowing_sand')
+    except Exception:
+        pass
+
+    try:
+        save_dir = Path.home() / '.claude/scripts/slack-jipsa/uploads'
+        save_dir.mkdir(parents=True, exist_ok=True)
+        save_path = save_dir / file_name
+        req_dl = _urlreq.Request(file_url, headers={'Authorization': f'Bearer {BOT_TOKEN}'})
+        with _urlreq.urlopen(req_dl, timeout=30) as r:
+            save_path.write_bytes(r.read())
+        log(f'  saved: {save_path}')
+    except Exception as e:
+        log(f'  file download fail: {e}')
+        web.chat_postMessage(channel=channel, text=f'파일 다운로드 실패: {e}')
+        return
+
+    comment = (event.get('text') or '').strip()
+    prompt = f"슬랙에서 파일이 왔어. 분석해서 핵심 내용을 요약해줘.\n파일 경로: {save_path}"
+    if comment:
+        prompt += f"\n사용자 코멘트: {comment}"
+
+    reply = call_claude(prompt, channel)
+    log(f'  reply: {reply[:80]}')
+
+    if reply and reply not in ('__SILENT_FAIL__', ''):
+        try:
+            from lib.slack_mrkdwn import to_mrkdwn
+            reply = to_mrkdwn(reply)
+        except Exception:
+            pass
+        try:
+            web.chat_postMessage(channel=channel, text=reply, mrkdwn=True)
+        except Exception as e:
+            log(f'  post fail: {e}')
+
+    try:
+        web.reactions_remove(channel=channel, timestamp=ts, name='hourglass_flowing_sand')
+        web.reactions_add(channel=channel, timestamp=ts, name='white_check_mark')
+    except Exception as e:
+        log(f'  reaction swap fail: {e}')
+
+
 def on_event(client: SocketModeClient, req: SocketModeRequest) -> None:
     # Slack에 즉시 ACK (3초 이내 필수)
     client.send_socket_mode_response(SocketModeResponse(envelope_id=req.envelope_id))
     if req.type != 'events_api': return
     event = req.payload.get('event', {})
-    if event.get('type') == 'message' and not event.get('subtype'):
-        # subtype: 봇 메시지 / 채널 join 등 무시 (None인 일반 메시지만)
-        # 비동기로 처리 (handler 블로킹 방지)
+    etype = event.get('type')
+    subtype = event.get('subtype')
+    has_files = bool(event.get('files'))
+    if etype != 'message': return
+    if subtype == 'file_share' or (not subtype and has_files):
+        threading.Thread(target=handle_file_share, args=(event,), daemon=True).start()
+    elif not subtype:
         threading.Thread(target=handle_message, args=(event,), daemon=True).start()
 
 
