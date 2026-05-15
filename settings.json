@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 C:\\Users\\<USERNAME>\\.claude\\hooks\\slack-session-summary.py"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+secrets/*.env
+*.log
+*.log
+__pycache__/
+.processed/
+logs/
