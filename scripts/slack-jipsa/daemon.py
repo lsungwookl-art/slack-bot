@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Slack ↔ Claude Code daemon (Agent Bootstrap)
 
@@ -118,7 +118,7 @@ ENV = load_env()
 BOT_TOKEN = ENV['SLACK_BOT_TOKEN']
 APP_TOKEN = ENV['SLACK_APP_TOKEN']
 CHANNEL = ENV['SLACK_CHANNEL']
-CHANNEL_DIALOG = ENV.get('SLACK_CHANNEL_DIALOG', '')  # 두 봇 대화 채널 (옵션)
+CHANNEL_DIALOG = ENV.get('SLACK_CHANNEL_DIALOG', '')
 # USER_SLACK_ID = 봇이 응답할 대상 사용자. (구 변수명 MIRI_USER_ID alias 지원)
 MIRI = ENV.get('USER_SLACK_ID') or ENV.get('MIRI_USER_ID', '')
 BOT = ENV['BOT_USER_ID']
@@ -547,12 +547,11 @@ def on_event(client: SocketModeClient, req: SocketModeRequest) -> None:
     # Slack에 즉시 ACK (3초 이내 필수)
     client.send_socket_mode_response(SocketModeResponse(envelope_id=req.envelope_id))
     if req.type != 'events_api': return
-    event = req.payload.get('event', {})
-    etype = event.get('type')
+    event   = req.payload.get('event', {})
+    etype   = event.get('type')
     subtype = event.get('subtype')
-    has_files = bool(event.get('files'))
     if etype != 'message': return
-    if subtype == 'file_share' or (not subtype and has_files):
+    if subtype == 'file_share' or (not subtype and event.get('files')):
         threading.Thread(target=handle_file_share, args=(event,), daemon=True).start()
     elif not subtype:
         threading.Thread(target=handle_message, args=(event,), daemon=True).start()
