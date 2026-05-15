@@ -192,7 +192,7 @@ def _run_claude(prompt: str, session_id: str, is_new: bool, timeout: int) -> sub
         '--dangerously-skip-permissions',
         '--add-dir', str(Path.home()),
         '--output-format', 'text',
-        '--model', 'opus',
+        '--model', 'sonnet',
         '--append-system-prompt', SYSTEM_PROMPT,
     ]
     cmd.extend(['--session-id', session_id] if is_new else ['--resume', session_id])
@@ -240,7 +240,7 @@ def _write_discussion_state() -> None:
 
 
 def notion_log_turn(channel: str, event_ts: str, user_text: str, reply_text: str,
-                    session_id: str, model: str = 'opus') -> None:
+                    session_id: str, model: str = 'sonnet') -> None:
     """슬랙 ↔ 클코 한 턴을 노션 'Claude Code 턴 로그' DB에 적재.
 
     daemon이 claude --print headless 모드라 Stop hook 발동 안 함 → 직접 적재.
@@ -472,7 +472,7 @@ def handle_message(event: dict) -> None:
         sid_for_log, _ = get_or_create_session(channel)
         threading.Thread(
             target=notion_log_turn,
-            args=(channel, ts, text, reply_clean, sid_for_log, 'opus'),
+            args=(channel, ts, text, reply_clean, sid_for_log, 'sonnet'),
             daemon=True,
         ).start()
     except Exception as e:
