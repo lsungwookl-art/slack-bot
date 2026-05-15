@@ -113,6 +113,12 @@ slack-bot/
 3. `claude --print`로 Claude API 호출
 4. 결과를 Slack에 전송
 
+**Slack 파일 공유**
+1. Slack 채널에 파일 첨부 (이미지, PDF, 텍스트 등)
+2. daemon.py가 파일 다운로드 → `~/.claude/scripts/slack-jipsa/uploads/` 저장
+3. Claude가 파일 경로를 받아 내용 분석
+4. 분석 결과를 Slack에 전송
+
 **폴더 트리거**
 1. `바탕화면/slack-bot/` 에 파일 투하
 2. folder-watch.ps1이 5초마다 감지
